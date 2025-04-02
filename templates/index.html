@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Chat System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .chat-container {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 0.25rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .message {
+            margin-bottom: 1rem;
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+        }
+        .user-message {
+            background-color: #e9ecef;
+            margin-left: 20%;
+        }
+        .assistant-message {
+            background-color: #f8f9fa;
+            margin-right: 20%;
+        }
+        .settings-panel {
+            background-color: #f8f9fa;
+            padding: 1rem;
+            border-radius: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h1 class="text-center mb-4">RAG Chat System</h1>
+        
+        <div class="row">
+            <!-- Settings Panel -->
+            <div class="col-md-4">
+                <div class="settings-panel">
+                    <h4>Settings</h4>
+                    <form id="uploadForm">
+                        <div class="mb-3">
+                            <label for="pdfFile" class="form-label">PDF File</label>
+                            <input type="file" class="form-control" id="pdfFile" accept=".pdf" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="temperature" class="form-label">Temperature (0.0-1.0)</label>
+                            <input type="number" class="form-control" id="temperature" value="0.7" step="0.1" min="0" max="1">
+                        </div>
+                        <div class="mb-3">
+                            <label for="maxTokens" class="form-label">Max Tokens</label>
+                            <input type="number" class="form-control" id="maxTokens" value="2000">
+                        </div>
+                        <div class="mb-3">
+                            <label for="chunkSize" class="form-label">Chunk Size</label>
+                            <input type="number" class="form-control" id="chunkSize" value="500">
+                        </div>
+                        <div class="mb-3">
+                            <label for="chunkOverlap" class="form-label">Chunk Overlap</label>
+                            <input type="number" class="form-control" id="chunkOverlap" value="50">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Initialize System</button>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Chat Panel -->
+            <div class="col-md-8">
+                <div class="chat-container" id="chatContainer"></div>
+                <form id="chatForm" class="d-flex">
+                    <input type="text" class="form-control me-2" id="userInput" placeholder="Type your message..." required>
+                    <button type="submit" class="btn btn-primary">Send</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let systemInitialized = false;
+
+        // Handle file upload and system initialization
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData();
+            formData.append('file', document.getElementById('pdfFile').files[0]);
+            formData.append('temperature', document.getElementById('temperature').value);
+            formData.append('max_tokens', document.getElementById('maxTokens').value);
+            formData.append('chunk_size', document.getElementById('chunkSize').value);
+            formData.append('chunk_overlap', document.getElementById('chunkOverlap').value);
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    systemInitialized = true;
+                    alert('System initialized successfully!');
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                alert('Error initializing system: ' + error);
+            }
+        });
+
+        // Handle chat messages
+        document.getElementById('chatForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (!systemInitialized) {
+                alert('Please initialize the system first!');
+                return;
+            }
+
+            const userInput = document.getElementById('userInput');
+            const message = userInput.value.trim();
+            
+            if (!message) return;
+
+            // Add user message to chat
+            addMessage(message, 'user');
+            userInput.value = '';
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message })
+                });
+                
+                const data = await response.json();
+                console.log('Chat response:', data);  // Debug log
+                
+                if (data.success) {
+                    addMessage(data.message, 'assistant');
+                } else {
+                    addMessage('Error: ' + data.message, 'assistant');
+                }
+            } catch (error) {
+                console.error('Chat error:', error);  // Debug log
+                addMessage('Error: ' + error, 'assistant');
+            }
+        });
+
+        function addMessage(message, sender) {
+            const chatContainer = document.getElementById('chatContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}-message`;
+            messageDiv.textContent = message;
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+    </script>
+</body>
+</html> 
