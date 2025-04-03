@@ -1,4 +1,4 @@
-# Simple RAG
+<h1 align="center">Simple RAG</h1>
 
 <p align="center">
   <a href="./README.md">English</a> |
